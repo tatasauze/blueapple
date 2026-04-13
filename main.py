@@ -2,8 +2,6 @@
 
 import numpy as np
 import matplotlib.pyplot as plt
-import cv2
-
 
 class apple():
     def __init__(self,path:str):
@@ -23,14 +21,19 @@ class apple():
         '''
         func: load png
         '''
-        bgr_img = cv2.imread(self.path)
-        rgb_img = cv2.cvtColor(bgr_img,cv2.COLOR_BGR2RGB)
-        self.piexl = rgb_img
+        rgb_img = plt.imread(self.path)
+        print(rgb_img.shape)
+        # to ensure img is 3 channels
+        if rgb_img.shape[2] == 4:
+            rgb_img = rgb[:,:,3]
         
-        # 3 channels to R G B
+        self.pixel = rgb_img
+
         self.R = rgb_img[:,:,0]
         self.G = rgb_img[:,:,1]
         self.B = rgb_img[:,:,2]
+
+
 
 
 
