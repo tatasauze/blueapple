@@ -46,36 +46,30 @@ class apple():
         Return:
             H, S, V:numpy array of pixel in hsv form
         '''
-        C_high = np.max(self.R,self.G,self.B)
-        C_low = np.min(self.R,self.G,self.B)
+        C_high = np.maximum(np.maximum(self.R,self.G),self.B)
+        C_low = np.minimum(np.minimum(self.R,self.G),self.B)
         C_rng = C_high - C_low
 
         self.V = C_high
-        self.S = C_rng / C_high
+        self.S = np.where(C_high==0,0,C_rng / (C_high+1e-10))
 
+        # 防止除0
+        eps = 1e-10
         # 1. normalization of R G B
-        R_ = (self.R - C_low) / C_rng
-        G_ = (self.G - C_low) / C_rng
-        B_ = (self.B - C_low) / C_rng
+        R_ = (self.R - C_low) / (C_rng + eps)
+        G_ = (self.G - C_low) / (C_rng + eps)
+        B_ = (self.B - C_low) / (C_rng + eps)
 
         # 2. set H'
-        if C_high == self.R:
-            self.H = B_ - G_
-        elif C_high == self.G:
-            self.H = 2 + R_ - B_
-        elif C_high == self.B:
-            self.H = 4 + G_ - R_
-        else:
-            print("something went wrong")
-        
-        # 3. scale to [0,1)
-        if self.H <0:
-            self.H += 6
-            self.H /= 6
-        else:
-            self.H /= 6
-        
+        self.H = np.zeros_like(C_high)
+        self.H = np.where(C_high == self.R, B_ - G_,self.H)
+        self.H = np.where(C_high == self.G, 2 + R_ - B_, self.H)
+        self.H = np.where(C_high == self.B, 4 + G_ - R_, self.H)
 
+        # 3. scale to [0,1)
+        self.H = np.where(self.H <0, self.H + 6, self.H)
+        self.H = self.H / 6        
+        
     # HSV2RGB()
     def HSV2RGB(self):
         '''
@@ -108,23 +102,30 @@ class apple():
          }
         '''
         # 3. distribute the value to RGB
-        if c1 == 0:
-            self.R, self.G, self.B = v, z, x
-        elif c1 ==1:
-            self.R, self.G, self.B = y, v, x
-        elif c1 ==2:
-            self.R, self.G, self.B = x, v, z
-        elif c1 ==3:
-            self.R, self.G, self.B = x, y, v
-        elif c1 ==4:
-            self.R, self.G, self.B = z, x, v
-        elif c1 ==5:
-            self.R, self.G, self.B = v, x, y
+        # if c1 == 0:
+        #     self.R, self.G, self.B = v, z, x
+        # elif c1 ==1:
+        #     self.R, self.G, self.B = y, v, x
+        # elif c1 ==2:
+        #     self.R, self.G, self.B = x, v, z
+        # elif c1 ==3:
+        #     self.R, self.G, self.B = x, y, v
+        # elif c1 ==4:
+        #     self.R, self.G, self.B = z, x, v
+        # elif c1 ==5:
+        #     self.R, self.G, self.B = v, x, y
         
+        self.R = np.select([c1==0,c1==1,c1==2,c1==3,c1==4,c1==5],
+                            [x,y,x,x,z,v])
+        self.G = np.select([c1==0,c1==1,c1==2,c1==3,c1==4,c1==5],
+                            [z,v,v,y,x,x])
+        self.B = np.select([c1==0,c1==1,c1==2,c1==3,c1==4,c1==5],
+                            [x,x,z,v,v,y])
+
         # 4. scale to 0~255
-        self.B = min(255*self.B,255)
-        self.G = min(255*self.G,255)
-        self.R = min(255*self.R,255)
+        self.R = np.clip(255*self.R,0,255)
+        self.G = np.clip(255*self.G,0,255)
+        self.B = np.clip(255*self.B,0,255)
 
     # HSV_shift()
     def HSV_shift(self,switch_degree:int):
@@ -133,7 +134,7 @@ class apple():
         Args:
             'R2B': 240 degree
         '''
-        self.H = np.mod(self.H + switch_degree/360)
+        self.H = np.mod(self.H + switch_degree/360,1)
     
     # RGB2pixel()
     def RGB2pixel(self):
@@ -142,9 +143,9 @@ class apple():
         '''
         self.piexl = np.dstack((self.R,self.G,self.B))
 
-if __name__=="main":
+if __name__=="__main__":
     # init
-    color_transformer = apple("apple.png")
+    color_transformer = apple("red_apple.png")
     color_transformer.load_img()
     color_transformer.RGB2HSV()
     color_transformer.HSV_shift(240)
@@ -154,4 +155,4 @@ if __name__=="main":
     plt.imshow(color_transformer.piexl)
     plt.show()
     # save as png
-    plt.imsave("apple_blue.png",color_transformer.piexl)
+    plt.imsave("blue_apple.png",color_transformer.piexl/255.0)
