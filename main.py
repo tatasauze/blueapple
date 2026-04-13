@@ -72,9 +72,6 @@ class apple():
         else:
             self.H /= 6
         
-        # 4. project to circle
-        self.H *= 360
-        
 
     # HSV2RGB()
     def HSV2RGB(self):
@@ -86,7 +83,7 @@ class apple():
             R, G, B:numpy array of pixel in hsv form
         '''
         # 1. check where the point is in the hexagon
-        H = self.H/360
+        H = self.H
         H_ = np.mod(6*H,6)
         c1 = np.floor(H_) #c1 = 0,1,2,3,4,5
         c2 = H_ - c1
@@ -127,15 +124,31 @@ class apple():
         self.R = min(255*self.R,255)
 
     # HSV_shift()
-    def HSV_shift(self,switch_mode:str):
+    def HSV_shift(self,switch_degree:int):
         '''
-        func: change the color by shifting the hue value
+        func: change the color by shifting the hue value in degree
         Args:
-            switch = ['R2B','R2G']
-            'R2B': turn red and blue
-            'R2G': turn red and green
+            'R2B': 240 degree
         '''
-        if switch_mode == 'R2B':
-            self.H += 240
-        elif switch_mode == 'R2G':
-            self.H += 120
+        self.H = np.mod(self.H + switch_degree/360)
+    
+    # RGB2pixel()
+    def RGB2pixel(self):
+        '''
+        converrt RGB to pixel
+        '''
+        self.piexl = np.dstack((self.R,self.G,self.B))
+
+if __name__=="main":
+    # init
+    color_transformer = apple("apple.png")
+    color_transformer.load_img()
+    color_transformer.RGB2HSV()
+    color_transformer.HSV_shift(240)
+    color_transformer.HSV2RGB()
+    color_transformer.RGB2pixel()
+    # show img
+    plt.imshow(color_transformer.piexl)
+    plt.show()
+    # save as png
+    plt.imsave("apple_blue.png",color_transformer.piexl)
