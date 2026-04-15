@@ -1,40 +1,36 @@
 # HSV的轉換，更換color space之後，將附檔圖片內的紅蘋果(紅色色調區域)，轉變成藍蘋果(藍色色調)。
-
+import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 
 class apple():
-    def __init__(self,path:str):
-        self.path = path
-        self.piexl = None
+    def __init__(self,pixel=None,R=None,G=None,B=None,H=None,S=None,V=None):
+        
+        self.pixel = pixel
+        self.R = R
+        self.G = G
+        self.B = B
 
-        self.R = None
-        self.G = None
-        self.B = None
-
-        self.H = None
-        self.S = None
-        self.V = None
+        self.H = H
+        self.S = S
+        self.V = V
     
     # load_img()
-    def load_img(self):
+    def load_img(self,path:str):
         '''
         func: load png
         '''
-        rgb_img = plt.imread(self.path)
+        rgb_img = plt.imread(path)
         print(rgb_img.shape)
         # to ensure img is 3 channels
         if rgb_img.shape[2] == 4:
-            rgb_img = rgb[:,:,3]
+            rgb_img = rgb_img[:,:,3]
         
         self.pixel = rgb_img
 
         self.R = rgb_img[:,:,0]
         self.G = rgb_img[:,:,1]
         self.B = rgb_img[:,:,2]
-
-
-
 
 
     # RGB2HSV()
@@ -62,10 +58,9 @@ class apple():
 
         # 2. set H'
         self.H = np.zeros_like(C_high)
-        self.H = np.where(C_high == self.R, B_ - G_,self.H)
-        self.H = np.where(C_high == self.G, 2 + R_ - B_, self.H)
-        self.H = np.where(C_high == self.B, 4 + G_ - R_, self.H)
-
+        self.H = np.where(C_high == self.R, B_ - G_, 
+           np.where(C_high == self.G, 2 + R_ - B_,
+           np.where(C_high == self.B, 4 + G_ - R_, self.H)))
         # 3. scale to [0,1)
         self.H = np.where(self.H <0, self.H + 6, self.H)
         self.H = self.H / 6        
@@ -141,18 +136,79 @@ class apple():
         '''
         converrt RGB to pixel
         '''
-        self.piexl = np.dstack((self.R,self.G,self.B))
+        self.pixel = np.dstack((self.R,self.G,self.B))
+
+# select_region()
+def select_region(path:str):
+    '''
+    先將原圖的紅色框出來再轉換
+    Args:
+        path: img
+    Returns:
+        output_img: img only change color red into blue
+    '''
+    red_apple = apple()
+    red_apple.load_img(path)
+    pixel = red_apple.pixel
+    
+    # 紅色色相範圍（0°~30°）
+    red_apple.RGB2HSV()
+    H = red_apple.H
+    S = red_apple.S
+    V = red_apple.V
+    if ((H != np.zeros_like(H)) & (S != np.zeros_like(S)) & (V != np.zeros_like(V))).any():
+        red_mask = ((H < 0.111) | (H > 0.90)) & (S > 0.2) & (V > 0.1)
+        # red_mask = (H < 0.083) & (S > 0.4) & (V > 0.3) #numpy mask
+    else:
+        print("mask get wrong")
+    
+    # transform 
+    trans_apple = apple()
+    trans_apple.pixel = pixel.copy()
+    trans_apple.R = pixel[:,:,0].copy()
+    trans_apple.G = pixel[:,:,1].copy()
+    trans_apple.B = pixel[:,:,2].copy()
+    trans_apple.RGB2HSV()
+    trans_apple.HSV_shift(240)
+    trans_apple.HSV2RGB()
+    trans_apple.RGB2pixel()
+
+    # replace pixel 只替換紅色區域
+    output_img = pixel.copy()
+    
+    # 將 trans_apple.pixel 轉換回 0~1 範圍
+    trans_pixel_normalized = trans_apple.pixel / 255.0
+    output_img[red_mask] = trans_pixel_normalized[red_mask]
+    
+    return output_img
 
 if __name__=="__main__":
     # init
-    color_transformer = apple("red_apple.png")
-    color_transformer.load_img()
-    color_transformer.RGB2HSV()
-    color_transformer.HSV_shift(240)
-    color_transformer.HSV2RGB()
-    color_transformer.RGB2pixel()
-    # show img
-    plt.imshow(color_transformer.piexl)
-    plt.show()
-    # save as png
-    plt.imsave("blue_apple.png",color_transformer.piexl/255.0)
+    # color_transformer = apple()
+    # color_transformer.load_img("red_apple.png")
+    # color_transformer.RGB2HSV()
+    # color_transformer.HSV_shift(240)
+    # color_transformer.HSV2RGB()
+    # color_transformer.RGB2pixel()
+    # # show img
+    # # plt.imshow(color_transformer.pixel)
+    # plt.show()
+    # # save as png
+    # plt.imsave("blue_apple_gobal_change.png",color_transformer.pixel/255.0)
+
+    path = 'red_apple.png'
+    output_img = select_region(path)
+    plt.imsave("blue_apple_select_region.png",output_img)
+
+    # 檢視原圖RGB
+
+    # img = plt.imread("red_apple.png")
+    # rgb_img =  (img*255).astype(np.int16)
+    # r_channel = rgb_img[:,:,0]
+    # g_channel = rgb_img[:,:,1]
+    # b_channel = rgb_img[:,:,2]
+
+    # # select red color
+    # mask = np.where((r_channel>200)&(g_channel<100)&(b_channel<100),1,0)
+    # r_channel.to_csv("r_channel.csv")
+    
